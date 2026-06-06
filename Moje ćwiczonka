@@ -1,0 +1,691 @@
+# niektóre int skopiowane od Nikulin
+############################################################
+# EKONOMETRIA
+# Zadania powtórzeniowe bez jej odp
+############################################################
+
+if (!require(AER)) install.packages("AER")
+if (!require(dplyr)) install.packages("dplyr")
+if (!require(lmtest)) install.packages("lmtest")
+if (!require(sandwich)) install.packages("sandwich")
+if (!require(car)) install.packages("car")
+if (!require(ggplot2)) install.packages("ggplot2")
+if (!require(skedastic)) install.packages("skedastic")
+if (!require(tseries)) install.packages("tseries")
+if (!require(estimatr)) install.packages("estimatr")
+if (!require(plm)) install.packages("plm")
+if (!require(stargazer)) install.packages("stargazer")
+if (!require(sampleSelection)) install.packages("sampleSelection")
+
+library(AER)
+library(dplyr)
+library(lmtest)
+library(sandwich)
+library(car)
+library(ggplot2)
+library(skedastic)
+library(tseries)
+library(estimatr)
+library(plm)
+library(stargazer)
+library(sampleSelection)
+
+############################################################
+# zadania - word
+############################################################
+
+# Zad1 Wykorzystując dane GrowthSW z pakietu AER oszacowano model 
+# liniowo-logarytmiczny wyjaśniający kształtowanie się rocznej stopy wzrostu 
+# gospodarczego w zależności od przeciętnej liczby lat edukacji osób dorosłych.
+
+data("GrowthSW")
+class(GrowthSW)
+?GrowthSW
+
+model1 <- lm(growth ~ log(education), data = GrowthSW)
+summary(model1)
+
+# A) 1a. jak zmieni się roczna stopa wzrostu gospodarczego, gdy średnia liczba 
+# lat edukacji wzrośnie o 1 jednostkę?
+# odp: gdy poziom edukacji wzrosnie o jednostke roczna st wzrostu wzrosnie o 1.0615 
+
+model1b <- lm(log(growth) ~ log(education), data = GrowthSW)
+summary(model1b)
+
+# B) 1b. oszacuj model logarytmiczno-logarytmiczny analizujący te same zależności 
+# i wskaż z wykorzystaniem współczynnika determinacji, który model lepiej wyjaśnia 
+# kształtowanie się stopy wzrostu gospodarczego?
+# odp: wspólczynnik determinacji wynosi 0.04599 jednak z uwagi na log nie mozna porównywac tych modeli
+
+# C) 1c. Na podstawie modelu liniowo-logarytmicznego zinterpretuj standardowy 
+# błąd regresji oraz średni błąd szacunku.
+# odp: standardowy błąd regresji = 0,23775 oraz średni błąd szacunku parametu to 1,666
+
+# ZAD 2 Wykorzystując dane Grunfeld zbudowane dane o strukturze panelowej. 
+# Zaproponuj zmienną, która będzie identyfikowała jednostki oraz zmienną, która 
+# będzie identyfikowała zmiany w czasie. Następnie z wykorzystaniem modeli 
+# panelowych oszacuj zależność pomiędzy kształtowaniem się wartości rynkowej 
+# firmy oraz kapitału (zapasu maszyn i wyposażenia). Który z poznanych modeli 
+# panelowych wybierzesz i dlaczego? Odpowiedź uzasadnij.
+# Na podstawie oszacowanego modelu dokonaj interpretacji badanych zależności.
+
+data("Grunfeld")
+class(Grunfeld)
+?Grunfeld
+
+# przygotowanie danych do modelu panelowego
+ramka <- pdata.frame(Grunfeld, index = c("firm", "year"))
+
+model_pooled <- plm(inv ~ capital, data = ramka, model = "pooling")
+model_fe <- plm(inv ~ capital, data = ramka, model = "within")
+model_re <- plm(inv ~ capital, data = ramka, model = "random")
+
+# Porównanie
+summary(model_fe)
+phtest(model_fe, model_re)
+
+# Int Zmienna identyfikująca jednostki: firm (firma).
+# Zmienna identyfikująca czas: year (rok).
+# Wybór modelu:
+# Na podstawie testu Hausmana (p = 0,3338) nie odrzucamy hipotezy zerowej, więc właściwy 
+# jest model z efektami losowymi (RE). Model RE jest niesprzeczny i bardziej efektywny niż FE.
+# Interpretacja zależności:
+# W modelu RE współczynnik przy kapitale wynosi 0,3708 (p < 0,001). Oznacza to, że 
+# wzrost kapitału (zapasu maszyn i wyposażenia) o 1 mln dolarów zwiększa wartość rynkową 
+# firmy średnio o 370 800 dolarów, przy niezmienionych pozostałych warunkach. Model 
+# wyjaśnia około 66% zmienności wartości rynkowej firm w próbie.
+
+# ZAD 3 Z wykorzystaniem danych Icecream z pakietu Ecdat oszacuj model liniowy wyjaśniający 
+# kształtowanie się spożycia lodów w zależności od przychodów, ceny oraz temperatury.
+# Wykonaj testy diagnostyczne w zakresie autokorelacji składnika losowego, 
+# normalności rozkładu oraz stałości wariancji.  W przypadku występowania autokorelacji 
+# rozważ i zaproponuj wykorzystanie modelu dynamicznego. Czy w ten sposób został 
+# rozwiązany problem autokorelacji? Odpowiedź uzasadnij.
+
+install.packages("Ecdat")
+library(Ecdat)
+
+data("Icecream")
+class(Icecream)
+?Icecream
+
+model3 <- lm(cons ~ income + price + temp, data = Icecream)
+summary(model3)
+
+# testy diagnostyczne
+
+dwtest(model3)
+bgtest(model3, order = 1)
+bgtest(model3, order = 4)
+shapiro.test(residuals(model3))
+jarque.bera.test(residuals(model3))
+bptest(model3)
+
+# Model dynamiczny (AR(1))
+Icecream$cons_lag1 <- c(NA, Icecream$cons[-nrow(Icecream)])
+model_dyn <- lm(cons ~ income + price + temp + cons_lag1, data = Icecream)
+summary(model_dyn)
+
+# Ponowne testy autokorelacji
+dwtest(model_dyn)
+bgtest(model_dyn, order = 1)
+
+# Testy diagnostyczne dla modelu statycznego:
+# Autokorelacja: test DW = 0,82 (p < 0,01) – występuje dodatnia autokorelacja rzędu 1
+# Normalność: test Shapiro-Wilka p = 0,03 – odrzucamy normalność reszt.
+# Stałość wariancji: test BP p = 0,28 – brak podstaw do odrzucenia homoskedastyczności.
+# Model dynamiczny: dodano zmienną cons-1 Po estymacji test DW = 2,11 (p > 0,05), BG p = 0,34.
+# Wniosek: Problem autokorelacji został rozwiązany, ponieważ opóźniona zmienna objaśniana 
+# przechwytuje część systematycznej dynamiki procesu (np. przyzwyczajenia konsumenckie). 
+# Model dynamiczny jest lepszy dla danych szeregów czasowych z efektem pamięci.
+############################################################
+
+# zadania - powtorzenie
+
+############################################################
+# ZADANIE 1
+# Wykorzystując dane GrowthSW z pakietu AER oszacuj model liniowy
+# wyjaśniający kształtowanie się średniej rocznej stopy wzrostu PKB (growth)
+# w zależności od średniego udziału handlu w gospodarce (tradeshare).
+############################################################
+
+data("GrowthSW")
+View(GrowthSW)
+?GrowthSW
+
+# PYTANIA:
+# 1) jak zmieni się średnia roczna stopa wzrostu gospodarczego wkutek jednostkowego 
+# wzrostu udziału handlu w gospodarce?
+
+model1 <- lm(growth ~ tradeshare, data = GrowthSW)
+summary(model1)
+
+# odp: wkutek jednostkowego wzrostu udziału handlu w gospodarce średnia roczna stopa 
+# wzrostu wzrośnie o 2,3064
+
+# 2) czy zależność pomiędzy zmienną "growth" oraz "tradeshare" jest statystycznie 
+# istotna? odp.uzasadnij
+
+# ODP: Jest statystycznie istotna poniewaz p-v=0.00407jest mniejsze niz przyjętego poziomu istotności 
+# alfa = 0,05, odrzucamy H0 i stwierdzamy, iż oszacowany paramentr jest statystycznie istotny
+
+# 3) co oznacza błąd standardowy = 0.7735?
+
+# Odp: Oznacza ze srednio mylimy sie o 0,7735 w szacowaiu wpływu parametry tradeshare 
+# na poziomie 2,3064 na growth
+
+# 4) wyznacz oraz zintepretuj przedziały ufności (95%) dla parametru stojącego przy "tradeshare"
+confint(model1, level = 0.95)
+# ODP: zakładamy z 95% pewnością parametr tradeshare mieści sie w przedziale 
+# od 0.7607473 do 3.852120
+
+# 5) dokonaj interpretacji R^2 oraz standardowego błędu regresji
+# ODP: R2- model w 10,98% wyjaśnia kształtowanie sie zmiennej objasnianej growth.
+# Standardowy błęd regresji - Residual standard error- SER - odchylenie pomiędzy 
+# wartościami teoretycznymi a rzeczywistymi wynosi  1,79 pp
+
+# 6) oceń, czy w modelu występuje normalność rozkładu składnika losowego oraz  
+# heteroskestyczność. W przypadku heteroskedastyczności zastosuj błędy odporne i 
+# porównaj je z pierwotnymi wynikami
+
+#normalność rozkładu składnika losowego
+jarque.bera.test(model1$residuals)
+# HO: reszty mają rozkład normalny
+# p-value = 0.2307 > 0,05
+# brak podstwa do oddrzucenia H0 - reszty mają rozkład normalny
+
+# Heteroskedastycznosc - zmiennosc wariancji
+white(mainlm = model1)
+# HO: reszty wykazują stałość wariancji
+# p.value =  0.875 > 0,05
+# brak podstaw do oddrzucenia H0 - reszty wykazują stałość wariancji
+
+############################################################
+# ZADANIE 2
+
+# Wykorzystując dane CPS1985 z pakietu AER oszacuj regresję wyjaśniającą kształtowanie się płacy 
+# w zależności od płci.
+
+data("CPS1985")
+View(CPS1985)
+?CPS1985
+
+# dokonaj analogicznej analizy jak w zadaniu 1. 
+
+# PYTANIA:
+
+# 1) jak zmieni się przeciętna płaca wskutek zmiany kategorii z mężczyzny na kobietę?
+model2 <- lm(wage ~ gender, data = CPS1985)
+summary(model2)
+
+# ODP: Przeciętna płaca dla kobiet jest przeciętnie o 2,11 jednostki nizsza niz mężczyzn.
+# względem przeciętnej płacy mężczyzn.
+
+# 2) czy zależność pomiędzy zmienną "wage" oraz "gender" jest statystycznie istotna? odp. uzasadnij
+# Tak jest istatotne. P-v=1.7e-06 < 0,05. odrzucamy H0.
+# Stwierdzamy, iż oszacowany parametr przy zmiennej genderfemale jest statystycznie istotny.
+# Oznacza to, że przeciętna różnica płac między kobietami i mężczyznami jest statystycznie istotna.
+
+# 3) co oznacza błąd standardowy = 0.4372?
+# Przy poziomie zmiennej gender -2,1161 mylimy sie srednio o 0,4372 jednostki.
+# Oznacza to, że estymator parametru przy genderfemale jest obarczony
+# szacowanym błędem standardowym równym 0.4372.
+
+# 4) wyznacz oraz zintepretuj przedziały ufności (95%) dla parametru stojącego przy "genderfemale"
+confint(model2, level = 0.95)
+#ODP: parametr gender z 95% prawdopodobienstwem przyjmuje wartosci (-2.974898 -1.257215)
+
+# 5) dokonaj interpretacji R^2 oraz standardowego błędu regresji
+# R^2 - model wyjaśnia 4,038% zmienności wage przez zmienna gender
+# SER - wartosci oczekiwane różnią sie od wartosci rzeczywistych przecietnie o 5,034 jednostki płay
+
+# 6) oceń, czy w modelu występuje normalność rozkładu składnika losowego oraz heteroskedastyczność.
+
+#normalność rozkładu składnika losowego
+jarque.bera.test(model2$residuals)
+# HO: reszty mają rozkład normalny
+# p-value = < 0,05
+# Odrzucamy h0 na rzecz h1 - reszty nie mają rozkładu normalnego
+
+# Heteroskedastycznosc - zmiennosc wariancji
+white(mainlm = model2)
+# HO: reszty wykazują stałość wariancji
+# p.value =  0.657 > 0,05
+# brak podstaw do oddrzucenia H0 - reszty wykazują stałość wariancji - brak heteroskedastycznosci
+
+############################################################
+# ZADANIE 3
+# Na podstawie danych CPS1985 oszacuj 4 fukcje regersji liniowej wyjaśniające kształtowanie 
+# się zmienności log(wage)
+# z wykorzystaniem następujących zestawów zmiennych objaśniających:
+#model1:  gender
+#model2: gender + education
+#model3: gender + education + experience
+#model4:gender + education + experience + I(experience^2)
+
+data("CPS1985")
+model31<- lm(log(wage) ~ gender, data = CPS1985)
+model32<- lm(log(wage) ~ gender + education, data = CPS1985)
+model33<- lm(log(wage) ~ gender + education + experience, data = CPS1985)
+model34<- lm(log(wage) ~ gender + education + experience + I(experience^2), data = CPS1985)
+summary(model31)
+summary(model32)
+summary(model33)
+summary(model34)
+
+# Na podstawie uzyskanych wyników, uzasadnij, czy różnica pomiędzy zarobkami kobiet 
+# i mężczyn jest stabilna? Odpowiedź uzasadnij podając konretne wyniki oszacowanych modeli.
+
+#ODP: rożnica utrzyuje sie na stabilnym poziomie (-0.23 do -0.25)
+
+# sprawdź czy w modelu 4 występuje współliniowość. Co należy zrobić w tej sytuacji?
+vif(model34)
+# współliniowość występuję pomiędzy zmiennymi vif >10:
+# experience 12.22 oraz I(experience^2) 12.59 - co jest logiczne, ponieważ jedna 
+# zmienna jest kwadratem drugiej. Jest to zjawisko naturalne – kwadrat zmiennej 
+# jest zawsze silnie skorelowany z samą zmienną.
+
+############################################################
+# ZADANIE 4
+# Na podstawie danych CPS1985 oszacuj model liniowy uzależniający wage od 
+# zmiennych age, gender, married oraz education
+
+model4<- lm(wage ~ age + gender + married + education, data = CPS1985)
+summary(model4)
+
+# jaka jest zmiana przewidywanych zarobków przy wzroście wieku z 25 do 26 lat.
+# ODP: Zmiana zarobków przy wzroscie wieku o 1 rok wynosi 0,10695 jednostki pensji.
+
+# czy zmienne zastosowane w modelu są w sposób łączny statystycznie istotne? Odpowiedź uzasadnij.
+# ODP: tak, wykorzystujemy test F p-v: < 2.2e-16 jest mniejsze od alfa=0,05 a zatem odrzucamy H0
+
+# jaka jest zmiana przewidywanych zarobków przy wzroście wieku z 33 do 34 lat.
+# Taka sama jak z 25 do 26 - model liniowy
+
+# zastosuj ten sam zestaw zmiennych oszacuj modele log-linowe, liniowo-logarytmiczne, oraz log-log.
+# który z tych modelu daje najlepszy poziom wyjaśnienia zmiennej "Wage"?
+# odp: nie możemy porównywać R^2 dla wszystkich wskazanych modeli, ponieważ w przypadku modelu 
+# log-liniowego oraz log-log zmienną objaśnianą jest log(wage)
+
+# z wykorzystaniem modelu log-liniowego oszacuj jaka jest  zmiana przewidywanych zarobków 
+# przy wzroście wieku z 33 do 34 lat.
+model4b<- lm(log(wage) ~ age + gender + married + education, data = CPS1985)
+summary(model4b)
+# ODP: wzost wieku o  1 rok wpływa na zmiane zarobków o 1,1607%
+
+# oszacuj model uzależniający log(wage) od log (age)
+model4c<- lm(log(wage) ~ log(age), data = CPS1985)
+summary(model4c)
+# zmiana wieku o 1% powoduje zmiane zarobków o 0,39908%
+
+# jaka jest  zmiana przewidywanych zarobków przy wzroście wieku z 33 do 34 lat.
+dane4c <- data.frame (age= c(33,34))
+
+pred_b_33_34 <- predict(model4c, newdata = dane4c)
+pred_b_33_34
+diff(pred_b_33_34)
+# odp: zarobki wzrosną o 0.01191375
+
+# oszacuj model uzależniający log(wage) od age, I(age^2), gender, education
+# w jaki sposób zmieniają się zawrobki wraz z wiekiem? odp. uzasadnij.
+model4d<- lm(log(wage) ~ age + I(age^2) + gender + education, data = CPS1985)
+summary(model4d)
+# ODP: ponieważ współczynnik przy age=0.0631512 oraz age^2=-0.0006340
+#Oznacza to, że wraz z wiekiem zarobki początkowo rosną, ale tempo tego wzrostu
+# stopniowo maleje. Po osiągnięciu pewnego wieku zarobki zaczynają spadać.
+
+############################################################
+# ZADANIE 5
+############################################################
+# DANE PANELOWE
+# Modele z efektami stałymi dla jednostek oraz dla czasu
+############################################################
+# Wykorzystaj dane Grunfeld z pakietu plm. Dane dotyczą przedsiębiorstw
+# obserwowanych w kolejnych latach. Zmienną zależną jest inv, czyli
+# inwestycje przedsiębiorstwa. Zmiennymi objaśniającymi są value oraz capital.
+
+library(plm)
+library(lmtest)
+library(sandwich)
+
+# Wykonaj następujące polecenia:
+#
+# 1) Wczytaj dane Grunfeld i określ ich strukturę panelową.
+data("Grunfeld")
+class(Grunfeld)
+# Określenie struktury panelowej
+Grunfeld_panel <- pdata.frame(Grunfeld, index = c("firm", "year"))
+?Grunfeld
+
+# 2) Oszacuj model z efektami stałymi dla jednostek, czyli dla przedsiębiorstw.
+model52 <- plm(inv ~ value + capital,
+                          data = Grunfeld_panel,
+                          model = "within")
+
+summary(model52)
+
+
+# 3) Zinterpretuj współczynniki przy zmiennych value oraz capital.
+#ODP: wzrost wartosci fimr o jednostke powoduje przecietny wzrost investycji o 0,11 cet.par.
+#  wzrost wartosci capital o jednostke powoduje przecietny wzrost investycji o 0,31 cet.par.
+
+# 4) Oszacuj model z efektami stałymi dla czasu, czyli dla lat.
+model54 <- plm(inv ~ value + capital,
+                      data = Grunfeld_panel,
+                      model = "within",
+                      effect = "twoways")
+summary(model54)
+coeftest(model54, vcov = vcovHC, type = "HC3")
+
+# 5) Zinterpretuj współczynniki przy zmiennych value oraz capital.
+#ODP: wzrost wartosci fimr o jednostke powoduje przecietny wzrost investycji o 0,12 cet.par.
+#  wzrost wartosci capital o jednostke powoduje przecietny wzrost investycji o 0,36 cet.par.
+
+# 6) Porównaj znaczenie modelu z efektami stałymi dla jednostek
+#    oraz modelu z efektami stałymi dla czasu.
+# Po dodaniu efektów czasowych współczynnik przy capital wzrósł z 0,31 do 0,36, 
+# a przy value z 0,11 do 0,12 – zmiany niewielkie
+
+
+# 7) W obu modelach zastosuj heteroskedastycznie odporne błędy standardowe.
+coeftest(model52, vcov = vcovHC, type = "HC3")
+coeftest(model54, vcov = vcovHC, type = "HC3")
+
+############################################################
+# ZADANIE 6
+############################################################
+
+# Regresja ze zmienną zależną binarną
+
+# Wykorzystaj dane Mroz87 z pakietu sampleSelection.
+# Dane dotyczą aktywności zawodowej kobiet zamężnych.
+# Zmienna lfp informuje, czy kobieta uczestniczy w rynku pracy.
+# Celem zadania jest oszacowanie prawdopodobieństwa aktywności zawodowej
+# kobiety za pomocą trzech modeli:
+#
+# 1) liniowego modelu prawdopodobieństwa, czyli LPM,
+# 2) modelu probitowego,
+# 3) modelu logitowego.
+#
+# Zmienną zależną będzie lfp:
+# lfp = 1, jeżeli kobieta uczestniczy w rynku pracy,
+# lfp = 0, jeżeli kobieta nie uczestniczy w rynku pracy.
+#
+# Zmienne objaśniające:
+# nwifeinc - dochód rodziny poza dochodem żony,
+# educ     - liczba lat edukacji,
+# exper    - doświadczenie zawodowe,
+# exper^2  - kwadrat doświadczenia zawodowego,
+# age      - wiek kobiety,
+# kids5    - liczba dzieci w wieku poniżej 5 lat,
+# kids618  - liczba dzieci w wieku od 6 do 18 lat.
+#
+# ZADANIE:
+#
+# 1) Wczytaj dane Mroz87
+library (sampleSelection)
+data("Mroz87")
+?Mroz87
+View(Mroz87)
+
+# 2) Oszacuj liniowy model prawdopodobieństwa LPM.
+model62<- lm(lfp ~ nwifeinc + educ + exper  + exper^2 + age + kids5 + kids618, 
+             data = Mroz87)
+summary(model62)
+
+# 3) Zinterpretuj wybrane współczynniki modelu LPM.
+# Zmienne statsytycznie istotne- p-v<0.5
+# wzrost poziomu (educ) o jed. (zwiększa) przewidywane prawdop. lfp średnio o (0.039819)
+# (nwifeinc) (-0.003327)
+# (exper) (0.022572) 
+# (age) (-0.017712)
+# (kids5) (-0.271829)
+# zminna kind618 nie jest statystycznie istotna
+# wszystkie zmienne w modelu sa statystycznie istotne p-value: < 2.2e-16
+
+# 4) Oszacuj model probitowy.
+model64 <- glm(lfp ~ nwifeinc + educ + exper  + I(exper^2) + age + kids5 + kids618, 
+               data = Mroz87,
+               family = binomial(link = "probit"))
+
+summary(model64)
+
+# 5) Oszacuj model logitowy.
+model65 <- glm(lfp ~ nwifeinc + educ + exper  + I(exper^2) + age + kids5 + kids618, 
+               data = Mroz87,
+               family = binomial(link = "logit"))
+
+summary(model65)
+
+# 6) Oblicz przewidywane prawdopodobieństwo aktywności zawodowej
+# dla dwóch profili kobiet różniących się poziomem edukacji na podstawie modelu 
+# probitowego oraz logitowego. porównaj wyniki
+nowe <- data.frame(
+  nwifeinc = c(mean(Mroz87$nwifeinc, na.rm = TRUE),
+               mean(Mroz87$nwifeinc, na.rm = TRUE)),
+  educ = c(12, 16),
+  exper = c(10, 10),
+  age = c(35, 35),
+  kids5 = c(0, 0),
+  kids618 = c(1, 1))
+
+pred_probit1 <- predict(model64, newdata = nowe,  type = "response")
+pred_probit1
+pred_logit1 <- predict(model65, newdata = nowe,  type = "response")
+pred_logit1
+
+#ODP: Wzrost wykształcenia z 12 do 16 lat zwiększa prawdopodobieństwo pracy 
+# o 11,5 pp w modelu probit i o 10,7 pp w modelu logit. Wyniki są zbliżone.
+
+############################################################
+# ZADANIE 7
+############################################################
+# TREND, SEZONOWOŚĆ I MODELE DYNAMICZNE
+data("UKgas")
+?UKgas
+
+# Przygotuj ramkę danych zawierającą:
+#    - y, czyli zużycie gazu,
+#    - czas, czyli liniowy indeks czasu,
+#    - kwartal, czyli zmienną sezonową.
+
+dane_gas <- data.frame(
+  y = as.numeric(UKgas),
+  czas = 1:length(UKgas),
+  kwartal = factor(cycle(UKgas)))
+
+# Oszacuj model z trendem liniowym.
+model71 <- lm(y ~ czas, data = dane_gas)
+summary(model71)
+
+# Zinterpretuj współczynnik przy zmiennej czas.
+# ODP: z kwartału na kwartał zuzycie gazu wzrastało średnio o 5,9469
+
+# Oszacuj model z trendem wykładniczym.
+model72 <- lm(log(y) ~ czas, data = dane_gas)
+summary(model72)
+
+# Zinterpretuj współczynnik przy zmiennej czas w modelu wykładniczym.
+# ODP: z kwartału na kwartał zuzycie gazu rosło przecietnie o 1,7887%
+
+# Oszacuj model z trendem liniowym i sezonowością kwartalną.
+model73 <- lm(y ~ czas + kwartal, data = dane_gas)
+summary(model73)
+
+# Zinterpretuj sezonowość.
+# ODP: wszystkie wskaźniki sezonowości są istotne statystycznie, przeciętnie w każdym 2,3,4 
+# kwartale zużycie gazu jest mniejsze kolejno o 42%, 99%, 34% niż w kwartale 1
+
+# Oszacuj model z trendem wykładniczym i sezonowością kwartalną.
+model74 <- lm(log(y) ~ czas + kwartal, data = dane_gas)
+summary(model74)
+
+# Oceń autokorelację reszt modelu z trendem wykładniczym i sezonowością
+# za pomocą testu Durbina-Watsona oraz testu Breuscha-Godfreya.
+reszty_sezon <- residuals(model74)
+
+# Test Durbina-Watsona
+dwtest(model74)
+# H0: brak dodatniej autokorelacji reszt rzędu I
+# H1: występuje dodatnia autokorelacja reszt rzędu I
+# p-value = 0.1324 > 0.05, brak podstaw do odrzucenia H0.
+# Autokorelacja reszt  rzędu I nie występuje 
+
+# Test Breuscha-Godfreya
+bgtest(model74, order = 4)
+# H0: brak autokorelacji reszt do rzędu 4
+# H1: występuje autokorelacja reszt do rzędu 4
+# Ponieważ p-value = 6,02·10⁻¹⁵ < 0,05, odrzucamy H0. W modelu występuje 
+# autokorelacja reszt do rzędu 4. Model wymaga poprawy 
+
+############################################################
+# MODEL DYNAMICZNY Z OPÓŹNIONYMI ZMIENNYMI OBJAŚNIAJĄCYMI
+############################################################
+
+# Wykorzystaj dane Seatbelts dostępne w pakiecie datasets.
+# Dane zawierają miesięczne informacje dotyczące bezpieczeństwa drogowego
+# w Wielkiej Brytanii. W tym zadaniu analizujemy zależność między liczbą 
+# zabitych kierowców a liczbą przejechanych kilometrów.
+data("Seatbelts")
+?Seatbelts
+class(Seatbelts)
+
+# oszacuj model dynamiczny z opóźnieniami zmiennej kms
+# Utwórz ramkę danych (PS. na kolokwium ramka danych będzie już przygotowana ;-))
+dane_sb <- data.frame(
+  kierowcy_zabici = as.numeric(Seatbelts[, "DriversKilled"]),
+  kms = as.numeric(Seatbelts[, "kms"]))
+n <- nrow(dane_sb)
+# utwórz opóźnienia zmiennej kms
+# wskaźnik z poprzedniego okresu
+dane_sb$kms_1 <- c(NA, dane_sb$kms[1:(n - 1)])
+
+# wskaźnik sprzed dwóch okresów
+dane_sb$kms_2 <- c(NA, NA, dane_sb$kms[1:(n - 2)])
+
+dane_dyn <- na.omit(dane_sb)
+
+head(dane_dyn)
+
+model75 <- lm(kierowcy_zabici ~ kms + kms_1 + kms_2,
+                       data = dane_dyn)
+
+summary(model75)
+#ODP: wzrost bieżącej liczby kilometrów o 1 jednostkę wiąże się przeciętnie ze spadkiem
+# liczby zabitych kierowców o około 0.0078, cet.par.
+
+# Współczynnik przy kms_1 wynosi 0.0008069, ale nie jest statystycznie istotny, 
+# ponieważ p-value = 0.684 > 0.05.Nie ma więc podstaw do stwierdzenia, że liczba kilometrów
+# z poprzedniego miesiąca wpływa na bieżącą liczbę zabitych kierowców.
+
+# wzrost liczby kilometrów sprzed dwóch miesięcy o 1 jednostkę wiąże się przeciętnie ze 
+# wzrostem bieżącej liczby zabitych kierowców o około 0.0049, cet.par
+
+#Możniki
+m0 <- coef(model75)["kms"]
+m1 <- coef(model75)["kms_1"]
+m2 <- coef(model75)["kms_2"]
+m0
+m1
+m2
+
+#ODP: cet.par wzrost bieżącej zmiennej kms o 1 jednostkę wiąże się przeciętnie ze spadkiem 
+# liczby zabitych kierowców w bieżącym miesiącu o około 0.0078 osoby.
+
+# wzrost zmiennej kms w poprzednim miesiącu o 1 jednostkę wiąże się przeciętnie ze wzrostem 
+# bieżącej liczby zabitych kierowców o około 0.0008 osoby,Z wcześniejszego wyniku wiemy jednak, 
+# że kms_1 nie jest statystycznie istotna.
+
+# wzrost zmiennej kms sprzed dwóch miesięcy o 1 jednostkę wiąże się przeciętnie ze wzrostem 
+# bieżącej liczby zabitych kierowców o około 0.0049 osoby
+
+#SKumulowane
+
+mnozniki <- data.frame(
+  horyzont = c(0, 1, 2),
+  mnoznik_okresowy = c(m0, m1, m2),
+  mnoznik_skumulowany = c(m0,
+                          m0 + m1,
+                          m0 + m1 + m2))
+mnozniki
+
+# ODP: wzrost zmiennej kms o 1 jednostkę w bieżącym miesiącu wiąże się ze spadkiem liczby 
+# zabitych kierowców w bieżącym miesiącu średnio o około 0.0078 osoby.
+
+# łączny efekt po bieżącym miesiącu i jednym opóźnieniu wynosi około -0.0070.
+
+# po uwzględnieniu wszystkich opóźnień, czyli kms, kms_1 oraz kms_2, łączny efekt 
+# wzrostu kms o 1 jednostkę wynosi około -0.0021.
+
+# Należy jednak pamiętać, że zmienna kms_1 nie była statystycznie istotna,
+# dlatego efekt skumulowany należy interpretować ostrożnie.
+
+
+############################################################
+# MODEL DYNAMICZNY Z OPÓŹNIONĄ ZMIENNĄ ZALEŻNĄ
+############################################################
+
+# Teraz sprawdzimy, czy bieżąca liczba zabitych kierowców zależy od:
+# - liczby zabitych kierowców w poprzednim miesiącu,
+# - bieżącej liczby przejechanych kilometrów.
+# W tym modelu zmienną opóźnioną będzie zmienna zależna:
+# kierowcy_zabici_1.
+
+dane_sb$kierowcy_zabici_1 <- c(NA, head(dane_sb$kierowcy_zabici, -1))
+
+head(dane_sb)
+
+# Usuwamy obserwacje z brakami danych
+dane_adl <- na.omit(dane_sb)
+
+head(dane_adl)
+
+# Model z opóźnioną zmienną objaśnianą
+dane_adl <- na.omit(data.frame(
+  kierowcy_zabici = dane_sb$kierowcy_zabici,
+  kierowcy_zabici_1 = dane_sb$kierowcy_zabici_1,
+  kms = dane_sb$kms))
+
+
+model76 <- lm(kierowcy_zabici ~ kierowcy_zabici_1 + kms,
+                           data = dane_adl)
+
+summary(model76)
+
+#ODP: wzrost liczby zabitych kierowców w poprzednim miesiącu o 1 osobę wiąże się przeciętnie 
+# ze wzrostem bieżącej liczby zabitych kierowców o około 0.61 osoby, przy stałej liczbie 
+# przejechanych kilometrów.
+
+# Występuje więc dodatnia zależność dynamiczna:
+# wyższa liczba zabitych kierowców w poprzednim miesiącu jest związana
+# z wyższą liczbą zabitych kierowców w miesiącu bieżącym.
+
+# Nie ma zatem podstaw do stwierdzenia, że bieżąca liczba przejechanych
+# kilometrów ma statystycznie istotny wpływ na bieżącą liczbę zabitych
+# kierowców, po uwzględnieniu liczby zabitych kierowców z poprzedniego
+# miesiąca.
+
+# MNOŻNIK KRÓTKOOKRESOWY I DŁUGOOKRESOWY
+
+rho <- coef(model76)["kierowcy_zabici_1"]
+beta <- coef(model76)["kms"]
+
+rho
+beta
+
+mnoznik_krotkookresowy <- beta
+
+mnoznik_krotkookresowy
+
+mnoznik_dlugookresowy <- beta / (1 - rho)
+
+mnoznik_dlugookresowy
+
+#ODP: wzrost bieżącej liczby przejechanych kilometrów o 1 jednostkę wiąże się przeciętnie 
+# ze spadkiem bieżącej liczby zabitych kierowców o około 0.0004 osoby, przy stałej liczbie 
+# zabitych kierowców w poprzednim miesiącu.
+
+# Efekt ten jest bardzo mały, bo współczynnik przy kms nie był statystycznie istotny
+
+# trwały wzrost liczby przejechanych kilometrów o 1 jednostkę wiąże się przeciętnie z 
+# długookresowym spadkiem liczby zabitych kierowców o około 0.0010 osoby.
