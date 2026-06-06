@@ -1,0 +1,91 @@
+ZADANIE 1: Diagnostyka i interpretacja modelu liniowego
+Zbiór danych: CASchools (pakiet AER)
+Kontekst: Dane dotyczą wyników testów w szkołach w Kalifornii.
+Zmienne do analizy:
+
+math – średni wynik z matematyki (zmienna zależna).
+
+str – stosunek liczby uczniów do nauczycieli w szkole (Student-Teacher Ratio).
+
+income – średni dochód w dystrykcie (w tys. dolarów).
+
+Polecenia:
+
+Wczytaj dane CASchools.
+
+Oszacuj standardowy model regresji liniowej wyjaśniający math za pomocą zmiennych str oraz income. Wświetl podsumowanie.
+
+Zinterpretuj współczynnik przy zmiennej str.
+
+Przetestuj normalność reszt testem Jarque'a-Bery oraz homoskedastyczność testem White'a.
+
+Jakie wnioski płyną z testów z punktu 4? Czy powinieneś zastosować błędy odporne (HC3)?
+
+ZADANIE 2: Nieliniowości (logarytmy i wielomiany)
+Zbiór danych: Kontynuujemy pracę na CASchools.
+
+Polecenia:
+
+Oszacuj nowy model: zamiast czystego income, zastosuj postać log-liniową (czyli uzależnij math od str oraz log(income)).
+
+Zinterpretuj współczynnik przy zmiennej log(income).
+
+Oszacuj kolejny model: uzależnij math od str, income oraz kwadratu dochodu (użyj funkcji I()).
+
+Sprawdź, czy w modelu z punktu 3 występuje problem współliniowości zmiennych (użyj funkcji vif()).
+
+ZADANIE 3: Dane panelowe
+Zbiór danych: Cigar (pakiet plm)
+Kontekst: Panel konsumpcji cygar w 46 stanach USA w latach 1963-1992.
+Zmienne do analizy:
+
+sales – sprzedaż cygar na mieszkańca (zmienna zależna).
+
+price – cena za paczkę.
+
+ndi – dochód rozporządzalny na mieszkańca.
+
+Polecenia:
+
+Wczytaj dane Cigar i przekształć je w ramkę danych panelowych (pdata.frame), wskazując state jako jednostkę oraz year jako czas.
+
+Oszacuj model z efektami stałymi dla jednostek (within).
+
+Zinterpretuj współczynnik przy zmiennej price.
+
+Oszacuj model z efektami dwukierunkowymi (jednostki i czas).
+
+ZADANIE 4: Modele binarne (Logit / Probit)
+Zbiór danych: PSID1976 (pakiet AER)
+Kontekst: Badanie aktywności zawodowej kobiet (podobnie jak dane Mroz87).
+Zmienne do analizy:
+
+participation – czy uczestniczy w rynku pracy (wartości "yes" / "no") (zmienna zależna).
+
+age – wiek.
+
+education – lata edukacji.
+
+youngkids – liczba dzieci poniżej 6 roku życia.
+
+Polecenia:
+
+Wczytaj dane PSID1976. Zmienna participation jest już zmienną czynnikową, więc funkcja glm() poradzi sobie z nią automatycznie ("yes" potraktuje jako 1).
+
+Oszacuj model probitowy.
+
+Czy zmienna youngkids jest statystycznie istotna? Jak wpływa na szansę podjęcia pracy?
+
+Utwórz testową ramkę danych dla kobiety w wieku 30 lat, z 12 latami edukacji i 1 małym dzieckiem. Wylicz dla niej przewidywane prawdopodobieństwo pracy (używając funkcji predict z odpowiednim typem odpowiedzi).
+
+ZADANIE 5: Szeregi czasowe, sezonowość i autokorelacja
+Zbiór danych: JohnsonJohnson (pakiet datasets)
+Kontekst: Kwartalne zyski na akcję firmy Johnson & Johnson. Dane mają postać obiektu ts (szeregu czasowego).
+
+Polecenia:
+
+Przygotuj ramkę danych (analogicznie do zadania z UKgas). Utwórz zmienną zależną y (jako numeryczne wartości zysku), zmienną czas (1 do liczby obserwacji) oraz zmienną kwartal (faktor z cykli).
+
+Oszacuj model z trendem wykładniczym (log z y) oraz sezonowością kwartalną.
+
+Sprawdź, czy w oszacowanym modelu występuje problem autokorelacji reszt, wykorzystując test Breuscha-Godfreya do 4 opóźnień wstecz. O czym świadczy wynik testu?
